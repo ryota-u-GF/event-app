@@ -21,13 +21,16 @@ new class extends Component
     public string $ends_at = '';
 
 
-    public bool $submitted = false;
-
     public function save()
     {
-        $this->validate();
+        $validated = $this->validate();
+        
+        auth()->user()->events()->create($validated);
+        
 
-        $this->submitted = true;
+        session()->flash('status', 'イベントを登録しました。');
+        
+        $this->redirectRoute('events.index', navigate: true);
     }
 };
 ?>
@@ -35,12 +38,12 @@ new class extends Component
 <div class="mx-auto max-w-2xl space-y-6">
     <flux:heading size="xl">イベントを登録</flux:heading>
 
-    @if ($submitted)
-        <flux:callout variant="success" icon="check-circle">
-            <flux:callout.heading>入力内容を受け付けました</flux:callout.heading>
-            <flux:callout.text>{{ $title }}（{{ $venue }}）{{ $starts_at }} 〜 {{ $ends_at }}</flux:callout.text>
-        </flux:callout>
-    @endif
+    
+    
+    
+    
+    
+    
 
     <form wire:submit="save" class="space-y-6">
         <flux:input wire:model="title" label="タイトル" placeholder="例: 岩手山 朝焼けトレッキング" />
@@ -52,8 +55,9 @@ new class extends Component
             <flux:input wire:model="ends_at" label="終了日時" type="datetime-local" />
         </div>
 
-        <div class="flex justify-end">
-            <flux:button type="submit" variant="primary">登録する</flux:button>
+            <div class="flex justify-end gap-3">
+                <flux:button :href="route('events.index')" variant="ghost" wire:navigate>キャンセル</flux:button>
+                <flux:button type="submit" variant="primary">登録する</flux:button>
         </div>
     </form>
 </div>
