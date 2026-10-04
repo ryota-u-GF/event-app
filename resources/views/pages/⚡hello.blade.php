@@ -1,9 +1,11 @@
 <?php
 
 use Livewire\Attributes\Title;
+
 use Livewire\Component;
 
 new #[Title('はじめてのページ')] class extends Component {
+    
     public string $name = '浦波';
 
     public int $count = 0;
