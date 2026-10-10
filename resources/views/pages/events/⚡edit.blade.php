@@ -81,7 +81,7 @@ new #[Title('イベントを編集')] class extends Component {
         $this->authorize('update', $this->event);
 
         $validated = $this->validate([
-            'ticketName' => 'required|string|max:100',
+            'ticketName' => 'required|string|max:50',
             'ticketPrice' => 'required|integer|min:0|max:1000000',
             'ticketCapacity' => 'required|integer|min:1|max:100000',
         ]);

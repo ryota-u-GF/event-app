@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 
-
 // 誰でも見られるページ
 Route::redirect('/', '/events')->name('home');
 Route::livewire('/events', 'pages::events.index')->name('events.index');

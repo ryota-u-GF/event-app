@@ -50,6 +50,7 @@ test('券種の入力が不正だと追加できない', function (string $name,
     expect(TicketType::count())->toBe(0);
 })->with([
     '名前が空' => ['', '1000', '10', 'ticketName'],
+    '名前が51文字' => [str_repeat('あ', 51), '1000', '10', 'ticketName'],
     '価格がマイナス' => ['一般', '-1', '10', 'ticketPrice'],
     '定員が0' => ['一般', '1000', '0', 'ticketCapacity'],
 ]);
@@ -86,3 +87,31 @@ test('イベントを削除すると券種も削除される', function () {
 
     $this->assertModelMissing($ticketType);
 });
+
+test('券種の名前は50文字まで追加できる', function () {
+    $user = User::factory()->create();
+    $event = Event::factory()->create(['user_id' => $user->id]);
+
+    Livewire::actingAs($user)
+        ->test('pages::events.edit', ['event' => $event])
+        ->set('ticketName', str_repeat('あ', 50))
+        ->set('ticketPrice', '1000')
+        ->set('ticketCapacity', '10')
+        ->call('addTicketType')
+        ->assertHasNoErrors();
+
+    expect($event->ticketTypes()->count())->toBe(1);
+});
+
+test('イベント一覧に最安の券種の価格が表示される', function (array $prices, string $expected) {
+    $event = Event::factory()->create();
+    foreach ($prices as $price) {
+        TicketType::factory()->create(['event_id' => $event->id, 'price' => $price]);
+    }
+
+    $this->get(route('events.index'))->assertSee($expected);
+})->with([
+    '最安が1,500円' => [[3000, 1500], '1,500円〜'],
+    '最安が0円' => [[0, 2000], '無料'],
+    '券種なし' => [[], '─'],
+]);
