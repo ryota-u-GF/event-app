@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Event;
+use App\Models\TicketType;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -21,6 +22,9 @@ class DatabaseSeeder extends Seeder
             'email' => 'test@example.com',
         ]);
 
-        Event::factory()->count(5)->create(['user_id' => $user->id]);
+        Event::factory()
+            ->count(5)
+            ->has(TicketType::factory()->count(3))
+            ->create(['user_id' => $user->id]);
     }
 }
