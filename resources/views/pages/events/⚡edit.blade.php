@@ -67,6 +67,25 @@ new #[Title('イベントを編集')] class extends Component {
         $this->redirectRoute('events.index', navigate: true);
     }
 
+    public function duplicate(): void
+    {
+
+        $this->authorize('update', $this->event);
+
+        $copy = Event::create([
+            'user_id' => auth()->id(),
+            'title' => mb_substr($this->event->title, 0, 96).'（複製）',
+            'description' => $this->event->description,
+            'venue' => $this->event->venue,
+            'starts_at' => $this->event->starts_at->copy()->addWeek(),
+            'ends_at' => $this->event->ends_at->copy()->addWeek(),
+        ]);
+
+        session()->flash('status', 'イベントを複製しました。');
+
+        $this->redirectRoute('events.edit', $copy, navigate: true);
+    }
+
     /**
      * @return \Illuminate\Database\Eloquent\Collection<int, \App\Models\TicketType>
      */
@@ -121,7 +140,10 @@ new #[Title('イベントを編集')] class extends Component {
         </div>
 
         <div class="flex justify-between">
-            <flux:button wire:click="delete" wire:confirm="このイベントを削除しますか？" variant="danger" icon="trash">削除</flux:button>
+            <div class="flex gap-3">
+                <flux:button wire:click="delete" wire:confirm="このイベントを削除しますか？" variant="danger" icon="trash">削除</flux:button>
+                <flux:button wire:click="duplicate" wire:confirm="このイベントを複製しますか？" icon="document-duplicate">イベントを複製</flux:button>
+            </div>
             <div class="flex gap-3">
                 <flux:button :href="route('events.index')" variant="ghost" wire:navigate>キャンセル</flux:button>
                 <flux:button type="submit" variant="primary">更新する</flux:button>

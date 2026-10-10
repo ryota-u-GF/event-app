@@ -143,6 +143,93 @@ test('他人のイベントは削除できない', function () {
     $this->assertModelExists($event);
 });
 
+// ---- 複製 ----
+
+test('主催者はイベントを複製できる', function () {
+    $user = User::factory()->create();
+    $event = Event::factory()->create([
+        'user_id' => $user->id,
+        'title' => '朝焼けトレッキング',
+        'starts_at' => '2026-11-01 05:00:00',
+        'ends_at' => '2026-11-01 09:00:00',
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('pages::events.edit', ['event' => $event])
+        ->call('duplicate');
+
+    $copy = Event::where('id', '!=', $event->id)->sole();
+
+    expect($copy->title)->toBe('朝焼けトレッキング（複製）')
+        ->and($copy->user_id)->toBe($user->id)
+        ->and($copy->description)->toBe($event->description)
+        ->and($copy->venue)->toBe($event->venue)
+        ->and($copy->starts_at->toDateTimeString())->toBe('2026-11-08 05:00:00')
+        ->and($copy->ends_at->toDateTimeString())->toBe('2026-11-08 09:00:00')
+        ->and($event->fresh()->starts_at->toDateTimeString())->toBe('2026-11-01 05:00:00')
+        ->and($event->fresh()->ends_at->toDateTimeString())->toBe('2026-11-01 09:00:00')
+        ->and($event->fresh()->title)->toBe('朝焼けトレッキング');
+});
+
+test('複製すると複製先の編集画面へ移動する', function () {
+    $user = User::factory()->create();
+    $event = Event::factory()->create(['user_id' => $user->id]);
+
+    $component = Livewire::actingAs($user)
+        ->test('pages::events.edit', ['event' => $event])
+        ->call('duplicate');
+
+    $copy = Event::where('id', '!=', $event->id)->sole();
+
+    $component->assertRedirect(route('events.edit', $copy));
+});
+
+test('イベントを複製しても券種はコピーされない', function () {
+    $user = User::factory()->create();
+    $event = Event::factory()->create(['user_id' => $user->id]);
+    $event->ticketTypes()->create(['name' => '一般', 'price' => 3000, 'capacity' => 50]);
+
+    Livewire::actingAs($user)
+        ->test('pages::events.edit', ['event' => $event])
+        ->call('duplicate');
+
+    $copy = Event::where('id', '!=', $event->id)->sole();
+
+    expect($copy->ticketTypes()->count())->toBe(0)
+        ->and($event->ticketTypes()->count())->toBe(1);
+});
+
+test('複製後のタイトルは100文字を超えないよう元のタイトルが切り詰められる', function (int $originalLength, int $expectedKeptLength) {
+    $user = User::factory()->create();
+    $event = Event::factory()->create(['user_id' => $user->id, 'title' => str_repeat('あ', $originalLength)]);
+
+    Livewire::actingAs($user)
+        ->test('pages::events.edit', ['event' => $event])
+        ->call('duplicate');
+
+    $copy = Event::where('id', '!=', $event->id)->sole();
+
+    expect($copy->title)->toBe(str_repeat('あ', $expectedKeptLength).'（複製）');
+})->with([
+    '100文字は96文字に切られる' => [100, 96],
+    '96文字はそのまま' => [96, 96],
+    '50文字はそのまま' => [50, 50],
+]);
+
+test('他人のイベントは複製できない', function () {
+    $owner = User::factory()->create();
+    $event = Event::factory()->create(['user_id' => $owner->id]);
+
+    $component = Livewire::actingAs($owner)
+        ->test('pages::events.edit', ['event' => $event]);
+
+    $this->actingAs(User::factory()->create());
+
+    $component->call('duplicate')->assertForbidden();
+
+    expect(Event::count())->toBe(1);
+});
+
 // ---- 一覧 ----
 
 test('一覧では自分のイベントにだけ編集ボタンが出る', function () {
