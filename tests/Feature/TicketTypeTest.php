@@ -115,3 +115,76 @@ test('イベント一覧に最安の券種の価格が表示される', function
     '最安が0円' => [[0, 2000], '無料'],
     '券種なし' => [[], '─'],
 ]);
+
+test('ゲストはイベント編集画面を開けずログインへ誘導される', function () {
+    $event = Event::factory()->create();
+
+    $this->get(route('events.edit', $event))->assertRedirect(route('login'));
+});
+
+test('他人のイベントには券種を追加できない', function () {
+    $event = Event::factory()->create();
+
+    Livewire::actingAs(User::factory()->create())
+        ->test('pages::events.edit', ['event' => $event])
+        ->assertForbidden();
+
+    expect($event->ticketTypes()->count())->toBe(0);
+});
+
+test('他人のイベントの券種は削除できない', function () {
+    $ticketType = TicketType::factory()->create();
+
+    Livewire::actingAs(User::factory()->create())
+        ->test('pages::events.edit', ['event' => $ticketType->event])
+        ->assertForbidden();
+
+    $this->assertModelExists($ticketType);
+});
+
+test('価格が0円と上限ちょうどの券種は追加できる', function (string $price) {
+    $user = User::factory()->create();
+    $event = Event::factory()->create(['user_id' => $user->id]);
+
+    Livewire::actingAs($user)
+        ->test('pages::events.edit', ['event' => $event])
+        ->set('ticketName', '一般')
+        ->set('ticketPrice', $price)
+        ->set('ticketCapacity', '100000')
+        ->call('addTicketType')
+        ->assertHasNoErrors();
+
+    $this->assertDatabaseHas('ticket_types', [
+        'event_id' => $event->id,
+        'price' => (int) $price,
+        'capacity' => 100000,
+    ]);
+})->with([
+    '無料' => ['0'],
+    '価格の上限' => ['1000000'],
+]);
+
+test('券種の価格・定員が範囲外や数値でないと追加できない', function (string $price, string $capacity, string $errorKey) {
+    $user = User::factory()->create();
+    $event = Event::factory()->create(['user_id' => $user->id]);
+
+    Livewire::actingAs($user)
+        ->test('pages::events.edit', ['event' => $event])
+        ->set('ticketName', '一般')
+        ->set('ticketPrice', $price)
+        ->set('ticketCapacity', $capacity)
+        ->call('addTicketType')
+        ->assertHasErrors($errorKey);
+
+    expect($event->ticketTypes()->count())->toBe(0);
+})->with([
+    '価格が上限超え' => ['1000001', '10', 'ticketPrice'],
+    '価格が数値でない' => ['abc', '10', 'ticketPrice'],
+    '価格が小数' => ['10.5', '10', 'ticketPrice'],
+    '価格が空' => ['', '10', 'ticketPrice'],
+    '定員が上限超え' => ['1000', '100001', 'ticketCapacity'],
+    '定員が数値でない' => ['1000', 'abc', 'ticketCapacity'],
+    '定員が小数' => ['1000', '1.5', 'ticketCapacity'],
+    '定員が空' => ['1000', '', 'ticketCapacity'],
+    '定員がマイナス' => ['1000', '-5', 'ticketCapacity'],
+]);
