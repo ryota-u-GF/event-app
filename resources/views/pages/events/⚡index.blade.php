@@ -17,13 +17,14 @@ new #[Title('イベント一覧')] class extends Component {
     #[Computed]
     public function events(): Collection
     {
-        $keyword = addcslashes(trim($this->search), '%_\\');
+        $keyword = strtr(trim($this->search), ['%' => '!%', '_' => '!_', '!' => '!!']);
 
         return Event::query()
             ->with('user')
             ->withMin('ticketTypes', 'price')
             ->when($keyword !== '', fn ($query) => $query->where(
-                fn ($query) => $query->where('title', 'like', "%{$keyword}%")->orWhere('venue', 'like', "%{$keyword}%")
+                fn ($query) => $query->whereRaw("title like ? escape '!'", ["%{$keyword}%"])
+                    ->orWhereRaw("venue like ? escape '!'", ["%{$keyword}%"])
             ))
             ->orderBy('starts_at')
             ->get();
