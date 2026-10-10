@@ -253,3 +253,56 @@ test('ゲストの一覧には編集ボタンも登録ボタンも出ない', fu
         ->assertDontSee(route('events.edit', $event), false)
         ->assertDontSee(route('events.create'), false);
 });
+
+// ---- 検索 ----
+
+test('一覧はタイトルの一部で絞り込める', function () {
+    Event::factory()->create(['title' => '朝焼けトレッキング', 'venue' => '山麓広場']);
+    Event::factory()->create(['title' => '雪上ヨガ体験', 'venue' => '湖畔ホール']);
+
+    Livewire::test('pages::events.index')
+        ->set('search', 'トレッキング')
+        ->assertSee('朝焼けトレッキング')
+        ->assertDontSee('雪上ヨガ体験');
+});
+
+test('一覧は会場の一部で絞り込める', function () {
+    Event::factory()->create(['title' => '朝焼けトレッキング', 'venue' => '山麓広場']);
+    Event::factory()->create(['title' => '雪上ヨガ体験', 'venue' => '湖畔ホール']);
+
+    Livewire::test('pages::events.index')
+        ->set('search', '湖畔')
+        ->assertSee('雪上ヨガ体験')
+        ->assertDontSee('朝焼けトレッキング');
+});
+
+test('一致するイベントがないと専用のメッセージが出る', function () {
+    Event::factory()->create(['title' => '朝焼けトレッキング']);
+
+    Livewire::test('pages::events.index')
+        ->set('search', '存在しない語')
+        ->assertSee('条件に合うイベントはありません。')
+        ->assertDontSee('朝焼けトレッキング');
+});
+
+test('検索欄を空に戻すと全件が表示される', function () {
+    Event::factory()->create(['title' => '朝焼けトレッキング']);
+    Event::factory()->create(['title' => '雪上ヨガ体験']);
+
+    Livewire::test('pages::events.index')
+        ->set('search', 'ヨガ')
+        ->assertDontSee('朝焼けトレッキング')
+        ->set('search', '')
+        ->assertSee('朝焼けトレッキング')
+        ->assertSee('雪上ヨガ体験');
+});
+
+test('検索語の % はワイルドカードとして扱われない', function () {
+    Event::factory()->create(['title' => '朝焼けトレッキング']);
+    Event::factory()->create(['title' => '全品50%還元セール']);
+
+    Livewire::test('pages::events.index')
+        ->set('search', '%')
+        ->assertSee('全品50%還元セール')
+        ->assertDontSee('朝焼けトレッキング');
+});
